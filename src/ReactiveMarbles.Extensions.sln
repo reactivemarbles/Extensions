@@ -4,6 +4,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ReactiveMarbles.Extensions"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ReactiveMarbles.Extensions.Tests", "ReactiveMarbles.Extensions.Tests\ReactiveMarbles.Extensions.Tests.csproj", "{C93089AE-DB49-416A-85C7-54E295C79F87}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ReactiveMarbles.Extensions.Logging", "ReactiveMarbles.Extensions.Logging\ReactiveMarbles.Extensions.Logging.csproj", "{1957860E-D42A-49B2-A71D-2C4A440C85FD}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -18,5 +20,9 @@ Global
 		{C93089AE-DB49-416A-85C7-54E295C79F87}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{C93089AE-DB49-416A-85C7-54E295C79F87}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{C93089AE-DB49-416A-85C7-54E295C79F87}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1957860E-D42A-49B2-A71D-2C4A440C85FD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1957860E-D42A-49B2-A71D-2C4A440C85FD}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1957860E-D42A-49B2-A71D-2C4A440C85FD}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1957860E-D42A-49B2-A71D-2C4A440C85FD}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

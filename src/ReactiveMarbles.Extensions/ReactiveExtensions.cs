@@ -20,10 +20,9 @@ namespace ReactiveMarbles.Extensions
         /// <typeparam name="T">The type of value emitted by the observable.</typeparam>
         /// <param name="observable">The observable that can contain nulls.</param>
         /// <returns>A non nullable version of the observable that only emits valid values.</returns>
-        public static IObservable<T> WhereNotNull<T>(this IObservable<T> observable) =>
+        public static IObservable<T> WhereIsNotNull<T>(this IObservable<T> observable) =>
             observable
-                .Where(x => x is not null)
-                .Select(x => x!);
+                .Where(x => x is not null);
 
         /// <summary>
         /// Will convert an observable so that it's value is ignored and converted into just returning <see cref="Unit"/>.

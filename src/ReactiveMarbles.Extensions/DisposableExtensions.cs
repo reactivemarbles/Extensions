@@ -2,7 +2,10 @@
 // ReactiveUI Association Incorporated licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for full license information.
 
-namespace System.Reactive.Disposables
+using System;
+using System.Reactive.Disposables;
+
+namespace ReactiveMarbles.Extensions
 {
     /// <summary>
     /// Extension methods associated with the IDisposable interface.

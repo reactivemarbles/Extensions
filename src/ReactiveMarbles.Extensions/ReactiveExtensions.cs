@@ -6,33 +6,32 @@ using System;
 using System.Reactive;
 using System.Reactive.Linq;
 
-namespace ReactiveMarbles.Extensions
+namespace ReactiveMarbles.Extensions;
+
+/// <summary>
+/// Extension methods for <see cref="System.Reactive"/>.
+/// </summary>
+public static class ReactiveExtensions
 {
     /// <summary>
-    /// Extension methods for <see cref="System.Reactive"/>.
+    /// Returns only values that are not null.
+    /// Converts the nullability.
     /// </summary>
-    public static class ReactiveExtensions
-    {
-        /// <summary>
-        /// Returns only values that are not null.
-        /// Converts the nullability.
-        /// </summary>
-        /// <typeparam name="T">The type of value emitted by the observable.</typeparam>
-        /// <param name="observable">The observable that can contain nulls.</param>
-        /// <returns>A non nullable version of the observable that only emits valid values.</returns>
-        public static IObservable<T> WhereIsNotNull<T>(this IObservable<T> observable) =>
-            observable
-                .Where(x => x is not null);
+    /// <typeparam name="T">The type of value emitted by the observable.</typeparam>
+    /// <param name="observable">The observable that can contain nulls.</param>
+    /// <returns>A non nullable version of the observable that only emits valid values.</returns>
+    public static IObservable<T> WhereIsNotNull<T>(this IObservable<T> observable) =>
+        observable
+            .Where(x => x is not null);
 
-        /// <summary>
-        /// Will convert an observable so that it's value is ignored and converted into just returning <see cref="Unit"/>.
-        /// This allows us just to be notified when the observable signals.
-        /// </summary>
-        /// <typeparam name="T">The current type of the observable.</typeparam>
-        /// <param name="observable">The observable to convert.</param>
-        /// <returns>The converted observable.</returns>
-        public static IObservable<Unit> AsSignal<T>(this IObservable<T> observable) =>
-            observable
-                .Select(_ => Unit.Default);
-    }
+    /// <summary>
+    /// Change the source observable type to <see cref="Unit"/>.
+    /// This allows us to be notified when the observable emits a value.
+    /// </summary>
+    /// <typeparam name="T">The current type of the observable.</typeparam>
+    /// <param name="observable">The observable to convert.</param>
+    /// <returns>The signal.</returns>
+    public static IObservable<Unit> AsSignal<T>(this IObservable<T> observable) =>
+        observable
+            .Select(_ => Unit.Default);
 }

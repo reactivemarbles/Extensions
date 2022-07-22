@@ -62,4 +62,68 @@ public class ReactiveExtensionsTests
             .Should()
             .Be(Unit.Default);
     }
+
+    /// <summary>
+    /// Tests WhereFalse does notifies false values.
+    /// </summary>
+    [Fact]
+    public void GivenFalse_WhenWhereFalse_ThenNotifiesValue()
+    {
+        // Given, When
+        bool? result = null;
+        using var disposable = Observable.Return(false).WhereFalse().Subscribe(x => result = x);
+
+        // Then
+        result
+            .Should()
+            .BeFalse();
+    }
+
+    /// <summary>
+    /// Tests WhereFalse does not notify true values.
+    /// </summary>
+    [Fact]
+    public void GivenTrue_WhenWhereFalse_ThenNoNotifications()
+    {
+        // Given, When
+        bool? result = null;
+        using var disposable = Observable.Return(true).WhereFalse().Subscribe(x => result = x);
+
+        // Then
+        result
+            .Should()
+            .BeNull();
+    }
+
+    /// <summary>
+    /// Tests WhereTrue notifies true values.
+    /// </summary>
+    [Fact]
+    public void GivenTrue_WhenWhereTrue_ThenNotifiesValue()
+    {
+        // Given, When
+        bool? result = null;
+        using var disposable = Observable.Return(true).WhereTrue().Subscribe(x => result = x);
+
+        // Then
+        result
+            .Should()
+            .BeTrue();
+    }
+
+    /// <summary>
+    /// Tests WhereTrue does not notify false values.
+    /// </summary>
+    [Fact]
+    public void GivenFalse_WhenWhereTrue_ThenNoNotifications()
+    {
+        // Given, When
+        bool? result = null;
+        using var disposable = Observable.Return(false).WhereTrue().Subscribe(x => result = x);
+
+        // Then
+        result
+            .Should()
+            .BeNull();
+    }
 }

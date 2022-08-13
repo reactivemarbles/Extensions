@@ -72,4 +72,16 @@ public static class ReactiveExtensions
     public static IObservable<Unit> AsSignal<T>(this IObservable<T> observable) =>
         observable
             .Select(_ => Unit.Default);
+
+    /// <summary>
+    /// Change the source observable type to null.
+    /// This allows us to be notified when the observable emits a value.
+    /// </summary>
+    /// <typeparam name="T">The current type of the observable.</typeparam>
+    /// <param name="observable">The observable to convert.</param>
+    /// <returns>The signal.</returns>
+    public static IObservable<T?> AsNull<T>(this IObservable<T> observable)
+        where T : class =>
+        observable
+            .Select(_ => null as T);
 }

@@ -145,14 +145,6 @@ public static class ReactiveExtensions
     }
 
     /// <summary>
-    /// Selects a unit.
-    /// </summary>
-    /// <typeparam name="T">The Type.</typeparam>
-    /// <param name="self">The self.</param>
-    /// <returns>A Value.</returns>
-    public static IObservable<Unit> ToUnit<T>(this IObservable<T?> self) => self.Select(_ => Unit.Default);
-
-    /// <summary>
     /// Detects when a stream becomes inactive for some period of time.
     /// </summary>
     /// <typeparam name="T">update type.</typeparam>

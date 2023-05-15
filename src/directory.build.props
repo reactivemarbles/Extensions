@@ -7,7 +7,7 @@
     <PackageProjectUrl>https://github.com/reactivemarbles/Mvvm</PackageProjectUrl>
     <PackageDescription>Common base classes for the MVVM pattern for Reactive Marbles.</PackageDescription>
     <PackageIcon>logo.png</PackageIcon>
-    <Owners>glennawatson;rlittlesii</Owners>
+    <Owners>glennawatson;rlittlesii;chrispulman</Owners>
     <PackageTags>system.reactive;propertychanged;inpc;reactive;functional;mvvm</PackageTags>
     <PackageReleaseNotes>https://github.com/reactivemarbles/Mvvm/releases</PackageReleaseNotes>
     <RepositoryUrl>https://github.com/reactivemarbles/Mvvm</RepositoryUrl>

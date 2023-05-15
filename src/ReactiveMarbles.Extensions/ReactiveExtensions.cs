@@ -290,4 +290,58 @@ public static class ReactiveExtensions
                     }
                 });
         });
+
+    /// <summary>
+    /// Injects heartbeats in a stream when the source stream becomes quiet:
+    /// - upon subscription if the source does not OnNext any update a heartbeat will be pushed
+    ///   after heartbeat Period, periodically until source receives an update
+    /// - when an update is received it is immediately pushed. After this update, if source does
+    ///   not OnNext after heartbeat Period, heartbeats will be pushed.
+    /// </summary>
+    /// <typeparam name="T">update type.</typeparam>
+    /// <param name="source">source stream.</param>
+    /// <param name="heartbeatPeriod">The heartbeat period.</param>
+    /// <param name="scheduler">The scheduler.</param>
+    /// <returns>Observable Heartbeat T.</returns>
+    public static IObservable<IHeartbeat<T>> Heartbeat<T>(this IObservable<T> source, TimeSpan heartbeatPeriod, IScheduler scheduler) =>
+        Observable.Create<IHeartbeat<T>>(observer =>
+        {
+            MultipleAssignmentDisposable heartbeatTimerSubscription = new();
+            object gate = new();
+
+            void ScheduleHeartbeats()
+            {
+                var disposable = Observable.Timer(heartbeatPeriod, heartbeatPeriod, scheduler)
+                .Subscribe(_ => observer.OnNext(new Heartbeat<T>()));
+
+                lock (gate)
+                {
+                    heartbeatTimerSubscription!.Disposable = disposable;
+                }
+            }
+
+            var sourceSubscription = source.Subscribe(
+                x =>
+                {
+                    lock (gate)
+                    {
+                        // cancel any scheduled heartbeat
+                        heartbeatTimerSubscription?.Disposable?.Dispose();
+                    }
+
+                    observer.OnNext(new Heartbeat<T>(x));
+
+                    ScheduleHeartbeats();
+                },
+                observer.OnError,
+                observer.OnCompleted);
+
+            ScheduleHeartbeats();
+
+            return new CompositeDisposable
+                {
+                        sourceSubscription,
+                        heartbeatTimerSubscription
+                };
+        });
 }

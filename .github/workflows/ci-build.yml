@@ -16,6 +16,22 @@ jobs:
     outputs:
       nbgv: ${{ steps.nbgv.outputs.SemVer2 }}
     steps:
+    - name: Get Current Visual Studio Information
+      shell: bash
+      run: |
+        dotnet tool update -g dotnet-vs
+        echo "-- About RELEASE --"
+        vs where release
+
+    - name: Update Visual Studio Latest Release
+      shell: bash
+      run: |
+        echo "-- Update RELEASE --"
+        vs update release Enterprise
+        vs modify release Enterprise +mobile +desktop +uwp +web
+        echo "-- About RELEASE Updated --"
+        vs where release
+
     - name: Checkout
       uses: actions/checkout@v3.5.2
       with:
@@ -25,18 +41,9 @@ jobs:
     - name: Install .NET Core
       uses: actions/setup-dotnet@v3.0.3
       with:
-        dotnet-version: 3.1.x
-
-    - name: Install .NET 5
-      uses: actions/setup-dotnet@v3.0.3
-      with:
-        dotnet-version: 5.0.x
-
-    - name: Install .NET 6
-      uses: actions/setup-dotnet@v3.0.3
-      with:
-        dotnet-version: 6.0.x
-        include-prerelease: true
+        dotnet-version: |
+            6.0.x
+            7.0.x
 
     - name: NBGV
       id: nbgv

@@ -130,7 +130,7 @@ public static class ReactiveExtensions
         sources.CombineLatest(xs => xs.All(x => x));
 
     /// <summary>
-    /// Gets the maximum.
+    /// Gets the maximum from all sources.
     /// </summary>
     /// <typeparam name="T">The Type.</typeparam>
     /// <param name="this">The this.</param>

@@ -5,9 +5,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageVersion Include="Nerdbank.GitVersioning" Version="3.6.132" />
-    <PackageVersion Include="StyleCop.Analyzers" Version="1.2.0-beta.354" />
-    <PackageVersion Include="Roslynator.Analyzers" Version="4.3.0" />
+    <PackageVersion Include="Nerdbank.GitVersioning" Version="3.6.133" />
+    <PackageVersion Include="StyleCop.Analyzers" Version="1.2.0-beta.507" />
+    <PackageVersion Include="Roslynator.Analyzers" Version="4.6.1" />
   </ItemGroup>
 
   <ItemGroup>
@@ -15,19 +15,19 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageVersion Include="System.Reactive" Version="5.0.0" />
+    <PackageVersion Include="System.Reactive" Version="6.0.0" />
   </ItemGroup>
 
   <ItemGroup>
-    <PackageVersion Include="coverlet.collector" Version="3.2.0" />
+    <PackageVersion Include="coverlet.collector" Version="6.0.0" />
     <PackageVersion Include="coverlet.msbuild" Version="3.1.2" />
-    <PackageVersion Include="FluentAssertions" Version="6.11.0" />
+    <PackageVersion Include="FluentAssertions" Version="6.12.0" />
     <PackageVersion Include="FluentAssertions.Analyzers" Version="0.16.0" />
-    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.5.0" />
-    <PackageVersion Include="Microsoft.Reactive.Testing" Version="5.0.0" />
-    <PackageVersion Include="xunit" Version="2.4.2" />
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.8.0" />
+    <PackageVersion Include="Microsoft.Reactive.Testing" Version="6.0.0" />
+    <PackageVersion Include="xunit" Version="2.6.1" />
     <PackageVersion Include="xunit.analyzers" Version="0.10.0" />
-    <PackageVersion Include="xunit.runner.visualstudio" Version="2.4.5" />
+    <PackageVersion Include="xunit.runner.visualstudio" Version="2.5.3" />
   </ItemGroup>
   
   <Import

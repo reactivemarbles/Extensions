@@ -6,13 +6,15 @@ using System.Collections.Generic;
 
 namespace ReactiveMarbles.Extensions.Internal;
 
-internal static class EnumerableIList
+/// <summary>
+/// A enumerable that also contains the enumerable list.
+/// </summary>
+/// <typeparam name="T">The type of items.</typeparam>
+internal interface IEnumerableIList<T> : IEnumerable<T>
 {
     /// <summary>
-    /// Creates the specified list.
+    /// Gets the enumerator.
     /// </summary>
-    /// <typeparam name="T">The type.</typeparam>
-    /// <param name="list">The list.</param>
-    /// <returns>Enumerable IList.</returns>
-    public static EnumerableIList<T> Create<T>(IList<T> list) => new(list);
+    /// <returns>The enumerator.</returns>
+    new EnumeratorIList<T> GetEnumerator();
 }

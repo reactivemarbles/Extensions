@@ -434,7 +434,7 @@ public static class ReactiveExtensions
         Observable.Create<T>(observer => source.ObserveOnSafe(scheduler).Subscribe(values => FastForEach(observer, values)));
 
     /// <summary>
-    /// Schedules an action to be executed.
+    /// If the scheduler is not null, Schedules an action to be executed otherwise executes the action.
     /// </summary>
     /// <param name="scheduler">Scheduler to execute the action on.</param>
     /// <param name="action">Action to execute.</param>
@@ -461,16 +461,7 @@ public static class ReactiveExtensions
     /// A Value.
     /// </returns>
     public static IObservable<T> FromArray<T>(this IEnumerable<T> source, IScheduler? scheduler = null) =>
-        Observable.Create<T>(observer =>
-        {
-            if (scheduler == null)
-            {
-                FastForEach(observer, source);
-                return Disposable.Empty;
-            }
-
-            return scheduler.Schedule(() => FastForEach(observer, source));
-        });
+        Observable.Create<T>(observer => scheduler.ScheduleSafe(() => FastForEach(observer, source)));
 
     /// <summary>
     /// Using the specified object.

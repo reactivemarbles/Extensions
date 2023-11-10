@@ -147,6 +147,21 @@ public static class ReactiveExtensions
     }
 
     /// <summary>
+    /// Gets the minimum from all sources.
+    /// </summary>
+    /// <typeparam name="T">The Type.</typeparam>
+    /// <param name="this">The this.</param>
+    /// <param name="sources">The sources.</param>
+    /// <returns>A Value.</returns>
+    public static IObservable<T?> GetMin<T>(this IObservable<T?> @this, params IObservable<T?>[] sources)
+        where T : struct
+    {
+        List<IObservable<T?>> source = new() { @this };
+        source.AddRange(sources);
+        return source.CombineLatest().Select(x => x.Min());
+    }
+
+    /// <summary>
     /// Detects when a stream becomes inactive for some period of time.
     /// </summary>
     /// <typeparam name="T">update type.</typeparam>
@@ -353,15 +368,10 @@ public static class ReactiveExtensions
     /// Called when [next].
     /// </summary>
     /// <typeparam name="T">The Type.</typeparam>
-    /// <param name="o">The o.</param>
+    /// <param name="observer">The observer.</param>
     /// <param name="events">The events.</param>
-    public static void OnNext<T>(this IObserver<T?> o, params T?[] events)
-    {
-        foreach (var e in events)
-        {
-            o.OnNext(e);
-        }
-    }
+    public static void OnNext<T>(this IObserver<T?> observer, params T?[] events) =>
+        FastForEach(observer, events);
 
     /// <summary>
     /// If the scheduler is not Null, wraps the source sequence in order to run its observer callbacks on the specified scheduler.
@@ -421,13 +431,25 @@ public static class ReactiveExtensions
     /// A Value.
     /// </returns>
     public static IObservable<T> ForEach<T>(this IObservable<IEnumerable<T>> source, IScheduler? scheduler = null) =>
-        Observable.Create<T>(o => source.ObserveOnSafe(scheduler).Subscribe(s =>
-            {
-                foreach (var item in s)
-                {
-                    o.OnNext(item);
-                }
-            }));
+        Observable.Create<T>(observer => source.ObserveOnSafe(scheduler).Subscribe(values => FastForEach(observer, values)));
+
+    /// <summary>
+    /// Schedules an action to be executed.
+    /// </summary>
+    /// <param name="scheduler">Scheduler to execute the action on.</param>
+    /// <param name="action">Action to execute.</param>
+    /// <returns>The disposable object used to cancel the scheduled action (best effort).</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="scheduler"/> or <paramref name="action"/> is <c>null</c>.</exception>
+    public static IDisposable ScheduleSafe(this IScheduler? scheduler, Action action)
+    {
+        if (scheduler == null)
+        {
+            action();
+            return Disposable.Empty;
+        }
+
+        return scheduler!.Schedule(action);
+    }
 
     /// <summary>
     /// Froms the array.
@@ -438,26 +460,16 @@ public static class ReactiveExtensions
     /// <returns>
     /// A Value.
     /// </returns>
-    public static IObservable<T> FromArray<T>(this T[] source, IScheduler? scheduler = null) =>
-        Observable.Create<T>((o) =>
+    public static IObservable<T> FromArray<T>(this IEnumerable<T> source, IScheduler? scheduler = null) =>
+        Observable.Create<T>(observer =>
         {
             if (scheduler == null)
             {
-                foreach (var item in source)
-                {
-                    o.OnNext(item);
-                }
-
+                FastForEach(observer, source);
                 return Disposable.Empty;
             }
 
-            return scheduler.Schedule(() =>
-            {
-                foreach (var item in source)
-                {
-                    o.OnNext(item);
-                }
-            });
+            return scheduler.Schedule(() => FastForEach(observer, source));
         });
 
     /// <summary>
@@ -486,4 +498,37 @@ public static class ReactiveExtensions
     public static IObservable<TResult> Using<T, TResult>(this T obj, Func<T, TResult> function, IScheduler? scheduler = null)
         where T : IDisposable
         => Observable.Using(() => obj, id => Start(() => function.Invoke(id), scheduler));
+
+    private static void FastForEach<T>(IObserver<T> observer, IEnumerable<T> source)
+    {
+        if (source is List<T> fullList)
+        {
+            foreach (var item in fullList)
+            {
+                observer.OnNext(item);
+            }
+        }
+        else if (source is IList<T> list)
+        {
+            // zero allocation enumerator
+            foreach (var item in EnumerableIList.Create(list))
+            {
+                observer.OnNext(item);
+            }
+        }
+        else if (source is T[] array)
+        {
+            foreach (var item in array)
+            {
+                observer.OnNext(item);
+            }
+        }
+        else
+        {
+            foreach (var item in source)
+            {
+                observer.OnNext(item);
+            }
+        }
+    }
 }

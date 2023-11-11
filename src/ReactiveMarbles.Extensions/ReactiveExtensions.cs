@@ -1,4 +1,4 @@
-// Copyright (c) 2019-2022 ReactiveUI Association Incorporated. All rights reserved.
+// Copyright (c) 2019-2023 ReactiveUI Association Incorporated. All rights reserved.
 // ReactiveUI Association Incorporated licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for full license information.
 
@@ -11,6 +11,8 @@ using System.Reactive.Disposables;
 using System.Reactive.Linq;
 using System.Reactive.Subjects;
 using System.Text;
+using System.Threading.Tasks;
+using ReactiveMarbles.Extensions.Internal;
 
 namespace ReactiveMarbles.Extensions;
 
@@ -142,6 +144,21 @@ public static class ReactiveExtensions
         List<IObservable<T?>> source = new() { @this };
         source.AddRange(sources);
         return source.CombineLatest().Select(x => x.Max());
+    }
+
+    /// <summary>
+    /// Gets the minimum from all sources.
+    /// </summary>
+    /// <typeparam name="T">The Type.</typeparam>
+    /// <param name="this">The this.</param>
+    /// <param name="sources">The sources.</param>
+    /// <returns>A Value.</returns>
+    public static IObservable<T?> GetMin<T>(this IObservable<T?> @this, params IObservable<T?>[] sources)
+        where T : struct
+    {
+        List<IObservable<T?>> source = new() { @this };
+        source.AddRange(sources);
+        return source.CombineLatest().Select(x => x.Min());
     }
 
     /// <summary>
@@ -336,4 +353,173 @@ public static class ReactiveExtensions
                         heartbeatTimerSubscription
                 };
         });
+
+    /// <summary>
+    /// Executes With limited concurrency.
+    /// </summary>
+    /// <typeparam name="T">The Type.</typeparam>
+    /// <param name="taskFunctions">The task functions.</param>
+    /// <param name="maxConcurrency">The maximum concurrency.</param>
+    /// <returns>A Value.</returns>
+    public static IObservable<T> WithLimitedConcurrency<T>(this IEnumerable<Task<T>> taskFunctions, int maxConcurrency) =>
+        new ConcurrencyLimiter<T>(taskFunctions, maxConcurrency).IObservable;
+
+    /// <summary>
+    /// Called when [next].
+    /// </summary>
+    /// <typeparam name="T">The Type.</typeparam>
+    /// <param name="observer">The observer.</param>
+    /// <param name="events">The events.</param>
+    public static void OnNext<T>(this IObserver<T?> observer, params T?[] events) =>
+        FastForEach(observer, events);
+
+    /// <summary>
+    /// If the scheduler is not Null, wraps the source sequence in order to run its observer callbacks on the specified scheduler.
+    /// </summary>
+    /// <typeparam name="TSource">The type of the elements in the source sequence.</typeparam>
+    /// <param name="source">Source sequence.</param>
+    /// <param name="scheduler">Scheduler to notify observers on.</param>
+    /// <returns>The source sequence whose observations happen on the specified scheduler.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="source"/> or <paramref name="scheduler"/> is null.</exception>
+    /// <remarks>
+    /// This only invokes observer callbacks on a scheduler. In case the subscription and/or unsubscription actions have side-effects
+    /// that require to be run on a scheduler, use <see cref="Observable.SubscribeOn{TSource}(IObservable{TSource}, IScheduler)"/>.
+    /// </remarks>
+    public static IObservable<TSource> ObserveOnSafe<TSource>(this IObservable<TSource> source, IScheduler? scheduler) =>
+        scheduler == null ? source : source.ObserveOn(scheduler);
+
+    /// <summary>
+    /// Invokes the action asynchronously on the specified scheduler, surfacing the result through an observable sequence.
+    /// </summary>
+    /// <param name="action">Action to run asynchronously.</param>
+    /// <param name="scheduler">If the scheduler is not Null, Scheduler to run the action on.</param>
+    /// <returns>An observable sequence exposing a Unit value upon completion of the action, or an exception.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="action"/> or <paramref name="scheduler"/> is null.</exception>
+    /// <remarks>
+    /// <list type="bullet">
+    /// <item><description>The action is called immediately, not during the subscription of the resulting sequence.</description></item>
+    /// <item><description>Multiple subscriptions to the resulting sequence can observe the action's outcome.</description></item>
+    /// </list>
+    /// </remarks>
+    public static IObservable<Unit> Start(Action action, IScheduler? scheduler)
+        => scheduler == null ? Observable.Start(action) : Observable.Start(action, scheduler);
+
+    /// <summary>
+    /// Invokes the specified function asynchronously on the specified scheduler, surfacing the result through an observable sequence.
+    /// </summary>
+    /// <typeparam name="TResult">The type of the result returned by the function.</typeparam>
+    /// <param name="function">Function to run asynchronously.</param>
+    /// <param name="scheduler">Scheduler to run the function on.</param>
+    /// <returns>An observable sequence exposing the function's result value, or an exception.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="function"/> or <paramref name="scheduler"/> is null.</exception>
+    /// <remarks>
+    /// <list type="bullet">
+    /// <item><description>The function is called immediately, not during the subscription of the resulting sequence.</description></item>
+    /// <item><description>Multiple subscriptions to the resulting sequence can observe the function's result.</description></item>
+    /// </list>
+    /// </remarks>
+    public static IObservable<TResult> Start<TResult>(Func<TResult> function, IScheduler? scheduler)
+        => scheduler == null ? Observable.Start(function) : Observable.Start(function, scheduler);
+
+    /// <summary>
+    /// Foreach from an Observable array.
+    /// </summary>
+    /// <typeparam name="T">The Type.</typeparam>
+    /// <param name="source">The source.</param>
+    /// <param name="scheduler">The scheduler.</param>
+    /// <returns>
+    /// A Value.
+    /// </returns>
+    public static IObservable<T> ForEach<T>(this IObservable<IEnumerable<T>> source, IScheduler? scheduler = null) =>
+        Observable.Create<T>(observer => source.ObserveOnSafe(scheduler).Subscribe(values => FastForEach(observer, values)));
+
+    /// <summary>
+    /// If the scheduler is not null, Schedules an action to be executed otherwise executes the action.
+    /// </summary>
+    /// <param name="scheduler">Scheduler to execute the action on.</param>
+    /// <param name="action">Action to execute.</param>
+    /// <returns>The disposable object used to cancel the scheduled action (best effort).</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="scheduler"/> or <paramref name="action"/> is <c>null</c>.</exception>
+    public static IDisposable ScheduleSafe(this IScheduler? scheduler, Action action)
+    {
+        if (scheduler == null)
+        {
+            action();
+            return Disposable.Empty;
+        }
+
+        return scheduler!.Schedule(action);
+    }
+
+    /// <summary>
+    /// Froms the array.
+    /// </summary>
+    /// <typeparam name="T">The Type.</typeparam>
+    /// <param name="source">The source.</param>
+    /// <param name="scheduler">The scheduler.</param>
+    /// <returns>
+    /// A Value.
+    /// </returns>
+    public static IObservable<T> FromArray<T>(this IEnumerable<T> source, IScheduler? scheduler = null) =>
+        Observable.Create<T>(observer => scheduler.ScheduleSafe(() => FastForEach(observer, source)));
+
+    /// <summary>
+    /// Using the specified object.
+    /// </summary>
+    /// <typeparam name="T">The Type.</typeparam>
+    /// <param name="obj">The object.</param>
+    /// <param name="action">The action.</param>
+    /// <param name="scheduler">The scheduler.</param>
+    /// <returns>
+    /// An IObservable of Unit.
+    /// </returns>
+    public static IObservable<Unit> Using<T>(this T obj, Action<T> action, IScheduler? scheduler = null)
+        where T : IDisposable
+        => Observable.Using(() => obj, id => Start(() => action?.Invoke(id), scheduler));
+
+    /// <summary>
+    /// Usings the specified function.
+    /// </summary>
+    /// <typeparam name="T">The type.</typeparam>
+    /// <typeparam name="TResult">The type of the result.</typeparam>
+    /// <param name="obj">The object.</param>
+    /// <param name="function">The function.</param>
+    /// <param name="scheduler">The scheduler.</param>
+    /// <returns>An IObservable of TResult.</returns>
+    public static IObservable<TResult> Using<T, TResult>(this T obj, Func<T, TResult> function, IScheduler? scheduler = null)
+        where T : IDisposable
+        => Observable.Using(() => obj, id => Start(() => function.Invoke(id), scheduler));
+
+    private static void FastForEach<T>(IObserver<T> observer, IEnumerable<T> source)
+    {
+        if (source is List<T> fullList)
+        {
+            foreach (var item in fullList)
+            {
+                observer.OnNext(item);
+            }
+        }
+        else if (source is IList<T> list)
+        {
+            // zero allocation enumerator
+            foreach (var item in EnumerableIList.Create(list))
+            {
+                observer.OnNext(item);
+            }
+        }
+        else if (source is T[] array)
+        {
+            foreach (var item in array)
+            {
+                observer.OnNext(item);
+            }
+        }
+        else
+        {
+            foreach (var item in source)
+            {
+                observer.OnNext(item);
+            }
+        }
+    }
 }

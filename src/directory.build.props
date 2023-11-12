@@ -31,7 +31,7 @@
   </PropertyGroup>
 
   <ItemGroup Condition="'$(IsTestProject)' != 'true'">
-    <PackageReference Include="Microsoft.SourceLink.GitHub" IncludeAssets="analyzers;build;buildMultitargeting;buildTransitive" PrivateAssets="All" />
+    <PackageReference Include="Microsoft.SourceLink.GitHub" PrivateAssets="All" />
   </ItemGroup>
 
    <PropertyGroup>

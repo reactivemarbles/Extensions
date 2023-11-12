@@ -24,7 +24,7 @@ public class DisposableExtensionsTests
         var sut = Disposable.Create(() => { });
 
         // When
-        var result = Record.Exception(() => sut.DisposeWith(null));
+        var result = Record.Exception(() => sut.DisposeWith(null!));
 
         // Then
         result

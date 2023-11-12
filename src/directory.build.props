@@ -20,6 +20,7 @@
     <Platform>AnyCPU</Platform>
     <IsTestProject>$(MSBuildProjectName.Contains('Tests'))</IsTestProject>
     <DebugType>embedded</DebugType>
+    <NoWarn>$(NoWarn);SA1010</NoWarn>
 
     <!-- Publish the repository URL in the built .nupkg (in the NuSpec <Repository> element) -->
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
@@ -30,7 +31,7 @@
   </PropertyGroup>
 
   <ItemGroup Condition="'$(IsTestProject)' != 'true'">
-    <PackageReference Include="Microsoft.SourceLink.GitHub" PrivateAssets="All" />
+    <PackageReference Include="Microsoft.SourceLink.GitHub" IncludeAssets="analyzers;build;buildMultitargeting;buildTransitive" PrivateAssets="All" />
   </ItemGroup>
 
    <PropertyGroup>
@@ -50,7 +51,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.SourceLink.GitHub" IncludeAssets="analyzers;build;buildMultitargeting;buildTransitive" PrivateAssets="All" />
     <PackageReference Include="StyleCop.Analyzers">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>

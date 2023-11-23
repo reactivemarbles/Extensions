@@ -27,7 +27,7 @@ Extensions for concerns found in System.Reactive that make consuming the library
 - Start
 - ForEach
 - ScheduleSafe
-- ScheduleSafe
+- FromArray
 - Using
 - While
 - Schedule

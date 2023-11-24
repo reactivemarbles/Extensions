@@ -11,6 +11,8 @@ using System.Reactive.Disposables;
 using System.Reactive.Linq;
 using System.Reactive.Subjects;
 using System.Text;
+using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 using ReactiveMarbles.Extensions.Internal;
 
@@ -21,7 +23,7 @@ namespace ReactiveMarbles.Extensions;
 /// </summary>
 public static class ReactiveExtensions
 {
-    private static readonly Dictionary<TimeSpan, Lazy<IConnectableObservable<DateTime>>> _timerList = new();
+    private static readonly Dictionary<TimeSpan, Lazy<IConnectableObservable<DateTime>>> _timerList = [];
 
     /// <summary>
     /// Returns only values that are not null.
@@ -52,13 +54,14 @@ public static class ReactiveExtensions
     /// <returns>An Observable DateTime.</returns>
     public static IObservable<DateTime> SyncTimer(TimeSpan timeSpan)
     {
-        if (!_timerList.ContainsKey(timeSpan))
+        if (!_timerList.TryGetValue(timeSpan, out var value))
         {
-            _timerList.Add(timeSpan, new Lazy<IConnectableObservable<DateTime>>(() => Observable.Timer(TimeSpan.FromMilliseconds(0), timeSpan).Timestamp().Select(x => x.Timestamp.DateTime).Publish()));
+            value = new Lazy<IConnectableObservable<DateTime>>(() => Observable.Timer(TimeSpan.FromMilliseconds(0), timeSpan).Timestamp().Select(x => x.Timestamp.DateTime).Publish());
+            _timerList.Add(timeSpan, value);
             _timerList[timeSpan].Value.Connect();
         }
 
-        return _timerList[timeSpan].Value;
+        return value.Value;
     }
 
     /// <summary>
@@ -141,8 +144,7 @@ public static class ReactiveExtensions
     public static IObservable<T?> GetMax<T>(this IObservable<T?> @this, params IObservable<T?>[] sources)
         where T : struct
     {
-        List<IObservable<T?>> source = new() { @this };
-        source.AddRange(sources);
+        List<IObservable<T?>> source = [@this, .. sources];
         return source.CombineLatest().Select(x => x.Max());
     }
 
@@ -156,8 +158,7 @@ public static class ReactiveExtensions
     public static IObservable<T?> GetMin<T>(this IObservable<T?> @this, params IObservable<T?>[] sources)
         where T : struct
     {
-        List<IObservable<T?>> source = new() { @this };
-        source.AddRange(sources);
+        List<IObservable<T?>> source = [@this, .. sources];
         return source.CombineLatest().Select(x => x.Min());
     }
 
@@ -452,6 +453,26 @@ public static class ReactiveExtensions
     }
 
     /// <summary>
+    /// Schedules an action to be executed after the specified relative due time.
+    /// </summary>
+    /// <param name="scheduler">Scheduler to execute the action on.</param>
+    /// <param name="dueTime">Relative time after which to execute the action.</param>
+    /// <param name="action">Action to execute.</param>
+    /// <returns>The disposable object used to cancel the scheduled action (best effort).</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="scheduler"/> or <paramref name="action"/> is <c>null</c>.</exception>
+    public static IDisposable ScheduleSafe(this IScheduler? scheduler, TimeSpan dueTime, Action action)
+    {
+        if (scheduler == null)
+        {
+            Thread.Sleep(dueTime);
+            action();
+            return Disposable.Empty;
+        }
+
+        return scheduler!.Schedule(dueTime, action);
+    }
+
+    /// <summary>
     /// Froms the array.
     /// </summary>
     /// <typeparam name="T">The Type.</typeparam>
@@ -489,6 +510,399 @@ public static class ReactiveExtensions
     public static IObservable<TResult> Using<T, TResult>(this T obj, Func<T, TResult> function, IScheduler? scheduler = null)
         where T : IDisposable
         => Observable.Using(() => obj, id => Start(() => function.Invoke(id), scheduler));
+
+    /// <summary>
+    /// Whiles the specified condition.
+    /// </summary>
+    /// <param name="condition">The condition.</param>
+    /// <param name="action">The action.</param>
+    /// <param name="scheduler">The scheduler.</param>
+    /// <returns>An IObservable of Unit.</returns>
+    public static IObservable<Unit> While(Func<bool> condition, Action action, IScheduler? scheduler = null) =>
+        Observable.While(condition, Start(action, scheduler));
+
+    /// <summary>
+    /// Schedules the specified due time.
+    /// </summary>
+    /// <typeparam name="T">The type.</typeparam>
+    /// <param name="value">The value.</param>
+    /// <param name="dueTime">The due time.</param>
+    /// <param name="scheduler">The scheduler.</param>
+    /// <returns>An IObservable of T.</returns>
+    public static IObservable<T> Schedule<T>(this T value, TimeSpan dueTime, IScheduler scheduler) =>
+        Observable.Create<T>(observer => scheduler.ScheduleSafe(dueTime, () => observer.OnNext(value)));
+
+    /// <summary>
+    /// Schedules the specified due time.
+    /// </summary>
+    /// <typeparam name="T">The type.</typeparam>
+    /// <param name="source">The value.</param>
+    /// <param name="dueTime">The due time.</param>
+    /// <param name="scheduler">The scheduler.</param>
+    /// <returns>An IObservable of T.</returns>
+    public static IObservable<T> Schedule<T>(this IObservable<T> source, TimeSpan dueTime, IScheduler scheduler) =>
+        Observable.Create<T>(observer => source.Subscribe(value => scheduler.ScheduleSafe(dueTime, () => observer.OnNext(value))));
+
+    /// <summary>
+    /// Schedules the specified due time.
+    /// </summary>
+    /// <typeparam name="T">The type.</typeparam>
+    /// <param name="value">The value.</param>
+    /// <param name="dueTime">The due time.</param>
+    /// <param name="scheduler">The scheduler.</param>
+    /// <returns>An IObservable of T.</returns>
+    public static IObservable<T> Schedule<T>(this T value, DateTimeOffset dueTime, IScheduler scheduler) =>
+        Observable.Create<T>(observer => scheduler.Schedule(dueTime, () => observer.OnNext(value)));
+
+    /// <summary>
+    /// Schedules the specified due time.
+    /// </summary>
+    /// <typeparam name="T">The type.</typeparam>
+    /// <param name="source">The value.</param>
+    /// <param name="dueTime">The due time.</param>
+    /// <param name="scheduler">The scheduler.</param>
+    /// <returns>An IObservable of T.</returns>
+    public static IObservable<T> Schedule<T>(this IObservable<T> source, DateTimeOffset dueTime, IScheduler scheduler) =>
+        Observable.Create<T>(observer => source.Subscribe(value => scheduler.Schedule(dueTime, () => observer.OnNext(value))));
+
+    /// <summary>
+    /// Schedules the specified due time.
+    /// </summary>
+    /// <typeparam name="T">The type.</typeparam>
+    /// <param name="value">The value.</param>
+    /// <param name="dueTime">The due time.</param>
+    /// <param name="scheduler">The scheduler.</param>
+    /// <param name="action">The action.</param>
+    /// <returns>An IObservable of T.</returns>
+    public static IObservable<T> Schedule<T>(this T value, TimeSpan dueTime, IScheduler scheduler, Action<T> action) =>
+        Observable.Create<T>(observer => scheduler.ScheduleSafe(dueTime, () =>
+        {
+            action(value);
+            observer.OnNext(value);
+        }));
+
+    /// <summary>
+    /// Schedules the specified due time.
+    /// </summary>
+    /// <typeparam name="T">The type.</typeparam>
+    /// <param name="source">The value.</param>
+    /// <param name="dueTime">The due time.</param>
+    /// <param name="scheduler">The scheduler.</param>
+    /// <param name="action">The action.</param>
+    /// <returns>An IObservable of T.</returns>
+    public static IObservable<T> Schedule<T>(this IObservable<T> source, TimeSpan dueTime, IScheduler scheduler, Action<T> action) =>
+        Observable.Create<T>(observer => source.Subscribe(value => scheduler.ScheduleSafe(dueTime, () =>
+        {
+            action(value);
+            observer.OnNext(value);
+        })));
+
+    /// <summary>
+    /// Schedules the specified due time.
+    /// </summary>
+    /// <typeparam name="T">The type.</typeparam>
+    /// <param name="value">The value.</param>
+    /// <param name="dueTime">The due time.</param>
+    /// <param name="scheduler">The scheduler.</param>
+    /// <param name="action">The action.</param>
+    /// <returns>An IObservable of T.</returns>
+    public static IObservable<T> Schedule<T>(this T value, DateTimeOffset dueTime, IScheduler scheduler, Action<T> action) =>
+        Observable.Create<T>(observer => scheduler.Schedule(dueTime, () =>
+        {
+            action(value);
+            observer.OnNext(value);
+        }));
+
+    /// <summary>
+    /// Schedules the specified due time.
+    /// </summary>
+    /// <typeparam name="T">The type.</typeparam>
+    /// <param name="source">The value.</param>
+    /// <param name="dueTime">The due time.</param>
+    /// <param name="scheduler">The scheduler.</param>
+    /// <param name="action">The action.</param>
+    /// <returns>An IObservable of T.</returns>
+    public static IObservable<T> Schedule<T>(this IObservable<T> source, DateTimeOffset dueTime, IScheduler scheduler, Action<T> action) =>
+        Observable.Create<T>(observer => source.Subscribe(value => scheduler.Schedule(dueTime, () =>
+        {
+            action(value);
+            observer.OnNext(value);
+        })));
+
+    /// <summary>
+    /// Schedules the specified due time.
+    /// </summary>
+    /// <typeparam name="T">The type.</typeparam>
+    /// <param name="value">The value.</param>
+    /// <param name="dueTime">The due time.</param>
+    /// <param name="scheduler">The scheduler.</param>
+    /// <param name="action">The action.</param>
+    /// <returns>An IObservable of T.</returns>
+    public static IObservable<T> Schedule<T>(this T value, TimeSpan dueTime, IScheduler scheduler, Action action) =>
+        Observable.Create<T>(observer => scheduler.ScheduleSafe(dueTime, () =>
+        {
+            action();
+            observer.OnNext(value);
+        }));
+
+    /// <summary>
+    /// Schedules the specified due time.
+    /// </summary>
+    /// <typeparam name="T">The type.</typeparam>
+    /// <param name="source">The value.</param>
+    /// <param name="dueTime">The due time.</param>
+    /// <param name="scheduler">The scheduler.</param>
+    /// <param name="action">The action.</param>
+    /// <returns>An IObservable of T.</returns>
+    public static IObservable<T> Schedule<T>(this IObservable<T> source, TimeSpan dueTime, IScheduler scheduler, Action action) =>
+        Observable.Create<T>(observer => source.Subscribe(value => scheduler.ScheduleSafe(dueTime, () =>
+        {
+            action();
+            observer.OnNext(value);
+        })));
+
+    /// <summary>
+    /// Schedules the specified due time.
+    /// </summary>
+    /// <typeparam name="T">The type.</typeparam>
+    /// <param name="value">The value.</param>
+    /// <param name="dueTime">The due time.</param>
+    /// <param name="scheduler">The scheduler.</param>
+    /// <param name="action">The action.</param>
+    /// <returns>An IObservable of T.</returns>
+    public static IObservable<T> Schedule<T>(this T value, DateTimeOffset dueTime, IScheduler scheduler, Action action) =>
+        Observable.Create<T>(observer => scheduler.Schedule(dueTime, () =>
+        {
+            action();
+            observer.OnNext(value);
+        }));
+
+    /// <summary>
+    /// Schedules the specified due time.
+    /// </summary>
+    /// <typeparam name="T">The type.</typeparam>
+    /// <param name="source">The value.</param>
+    /// <param name="dueTime">The due time.</param>
+    /// <param name="scheduler">The scheduler.</param>
+    /// <param name="action">The action.</param>
+    /// <returns>An IObservable of T.</returns>
+    public static IObservable<T> Schedule<T>(this IObservable<T> source, DateTimeOffset dueTime, IScheduler scheduler, Action action) =>
+        Observable.Create<T>(observer => source.Subscribe(value => scheduler.Schedule(dueTime, () =>
+        {
+            action();
+            observer.OnNext(value);
+        })));
+
+    /// <summary>
+    /// Schedules the specified due time.
+    /// </summary>
+    /// <typeparam name="T">The type.</typeparam>
+    /// <param name="value">The value.</param>
+    /// <param name="scheduler">The scheduler.</param>
+    /// <param name="function">The function.</param>
+    /// <returns>An IObservable of T.</returns>
+    public static IObservable<T> Schedule<T>(this T value, IScheduler scheduler, Func<T, T> function) =>
+        Observable.Create<T>(observer => scheduler.Schedule(() => observer.OnNext(function(value))));
+
+    /// <summary>
+    /// Schedules the specified due time.
+    /// </summary>
+    /// <typeparam name="T">The type.</typeparam>
+    /// <param name="source">The value.</param>
+    /// <param name="scheduler">The scheduler.</param>
+    /// <param name="function">The function.</param>
+    /// <returns>An IObservable of T.</returns>
+    public static IObservable<T> Schedule<T>(this IObservable<T> source, IScheduler scheduler, Func<T, T> function) =>
+        Observable.Create<T>(observer => source.Subscribe(value => scheduler.Schedule(() => observer.OnNext(function(value)))));
+
+    /// <summary>
+    /// Schedules the specified due time.
+    /// </summary>
+    /// <typeparam name="T">The type.</typeparam>
+    /// <param name="value">The value.</param>
+    /// <param name="dueTime">The due time.</param>
+    /// <param name="scheduler">The scheduler.</param>
+    /// <param name="function">The function.</param>
+    /// <returns>An IObservable of T.</returns>
+    public static IObservable<T> Schedule<T>(this T value, TimeSpan dueTime, IScheduler scheduler, Func<T, T> function) =>
+        Observable.Create<T>(observer => scheduler.Schedule(dueTime, () => observer.OnNext(function(value))));
+
+    /// <summary>
+    /// Schedules the specified due time.
+    /// </summary>
+    /// <typeparam name="T">The type.</typeparam>
+    /// <param name="source">The value.</param>
+    /// <param name="dueTime">The due time.</param>
+    /// <param name="scheduler">The scheduler.</param>
+    /// <param name="function">The function.</param>
+    /// <returns>An IObservable of T.</returns>
+    public static IObservable<T> Schedule<T>(this IObservable<T> source, TimeSpan dueTime, IScheduler scheduler, Func<T, T> function) =>
+        Observable.Create<T>(observer => source.Subscribe(value => scheduler.Schedule(dueTime, () => observer.OnNext(function(value)))));
+
+    /// <summary>
+    /// Schedules the specified due time.
+    /// </summary>
+    /// <typeparam name="T">The type.</typeparam>
+    /// <param name="value">The value.</param>
+    /// <param name="dueTime">The due time.</param>
+    /// <param name="scheduler">The scheduler.</param>
+    /// <param name="function">The function.</param>
+    /// <returns>An IObservable of T.</returns>
+    public static IObservable<T> Schedule<T>(this T value, DateTimeOffset dueTime, IScheduler scheduler, Func<T, T> function) =>
+        Observable.Create<T>(observer => scheduler.Schedule(dueTime, () => observer.OnNext(function(value))));
+
+    /// <summary>
+    /// Schedules the specified due time.
+    /// </summary>
+    /// <typeparam name="T">The type.</typeparam>
+    /// <param name="source">The value.</param>
+    /// <param name="dueTime">The due time.</param>
+    /// <param name="scheduler">The scheduler.</param>
+    /// <param name="function">The function.</param>
+    /// <returns>An IObservable of T.</returns>
+    public static IObservable<T> Schedule<T>(this IObservable<T> source, DateTimeOffset dueTime, IScheduler scheduler, Func<T, T> function) =>
+        Observable.Create<T>(observer => source.Subscribe(value => scheduler.Schedule(dueTime, () => observer.OnNext(function(value)))));
+
+    /// <summary>
+    /// Filters the specified source.
+    /// </summary>
+    /// <param name="source">The source.</param>
+    /// <param name="regexPattern">The pattern.</param>
+    /// <returns>A Value.</returns>
+    public static IObservable<string> Filter(this IObservable<string> source, string regexPattern) =>
+        source.Where(f => Regex.IsMatch(f, regexPattern));
+
+    /// <summary>
+    /// Shuffles the specified source.
+    /// </summary>
+    /// <typeparam name="T">The type.</typeparam>
+    /// <param name="source">The source.</param>
+    /// <returns>An array of values shuffled randomly.</returns>
+    public static IObservable<T[]> Shuffle<T>(this IObservable<T[]> source) =>
+        Observable.Create<T[]>(observer => source.Subscribe(array =>
+            {
+                Random random = new(unchecked(Environment.TickCount * 31));
+                var n = array.Length;
+                while (n > 1)
+                {
+                    n--;
+                    var k = random.Next(n + 1);
+                    (array[n], array[k]) = (array[k], array[n]);
+                }
+
+                observer.OnNext(array);
+            }));
+
+    /// <summary>
+    /// <para>Repeats the source observable sequence until it successfully terminates.</para>
+    /// <para>This is same as Retry().</para>
+    /// </summary>
+    /// <typeparam name="TSource">The type of the source.</typeparam>
+    /// <param name="source">The source.</param>
+    /// <returns>A Value.</returns>
+    public static IObservable<TSource?> OnErrorRetry<TSource>(this IObservable<TSource?> source) => source.Retry();
+
+    /// <summary>
+    /// When caught exception, do onError action and repeat observable sequence.
+    /// </summary>
+    /// <typeparam name="TSource">The type of the source.</typeparam>
+    /// <typeparam name="TException">The type of the exception.</typeparam>
+    /// <param name="source">The source.</param>
+    /// <param name="onError">The on error.</param>
+    /// <returns>A Value.</returns>
+    public static IObservable<TSource?> OnErrorRetry<TSource, TException>(this IObservable<TSource?> source, Action<TException> onError)
+        where TException : Exception => source.OnErrorRetry(onError, TimeSpan.Zero);
+
+    /// <summary>
+    /// When caught exception, do onError action and repeat observable sequence after delay time.
+    /// </summary>
+    /// <typeparam name="TSource">The type of the source.</typeparam>
+    /// <typeparam name="TException">The type of the exception.</typeparam>
+    /// <param name="source">The source.</param>
+    /// <param name="onError">The on error.</param>
+    /// <param name="delay">The delay.</param>
+    /// <returns>A Value.</returns>
+    public static IObservable<TSource?> OnErrorRetry<TSource, TException>(this IObservable<TSource?> source, Action<TException> onError, TimeSpan delay)
+where TException : Exception => source.OnErrorRetry(onError, int.MaxValue, delay);
+
+    /// <summary>
+    /// When caught exception, do onError action and repeat observable sequence during within retryCount.
+    /// </summary>
+    /// <typeparam name="TSource">The type of the source.</typeparam>
+    /// <typeparam name="TException">The type of the exception.</typeparam>
+    /// <param name="source">The source.</param>
+    /// <param name="onError">The on error.</param>
+    /// <param name="retryCount">The retry count.</param>
+    /// <returns>A Value.</returns>
+    public static IObservable<TSource?> OnErrorRetry<TSource, TException>(this IObservable<TSource?> source, Action<TException> onError, int retryCount)
+where TException : Exception => source.OnErrorRetry(onError, retryCount, TimeSpan.Zero);
+
+    /// <summary>
+    /// When caught exception, do onError action and repeat observable sequence after delay time
+    /// during within retryCount.
+    /// </summary>
+    /// <typeparam name="TSource">The type of the source.</typeparam>
+    /// <typeparam name="TException">The type of the exception.</typeparam>
+    /// <param name="source">The source.</param>
+    /// <param name="onError">The on error.</param>
+    /// <param name="retryCount">The retry count.</param>
+    /// <param name="delay">The delay.</param>
+    /// <returns>A Value.</returns>
+    public static IObservable<TSource?> OnErrorRetry<TSource, TException>(this IObservable<TSource?> source, Action<TException> onError, int retryCount, TimeSpan delay)
+where TException : Exception => source.OnErrorRetry(onError, retryCount, delay, Scheduler.Default);
+
+    /// <summary>
+    /// When caught exception, do onError action and repeat observable sequence after delay
+    /// time(work on delayScheduler) during within retryCount.
+    /// </summary>
+    /// <typeparam name="TSource">The type of the source.</typeparam>
+    /// <typeparam name="TException">The type of the exception.</typeparam>
+    /// <param name="source">The source.</param>
+    /// <param name="onError">The on error.</param>
+    /// <param name="retryCount">The retry count.</param>
+    /// <param name="delay">The delay.</param>
+    /// <param name="delayScheduler">The delay scheduler.</param>
+    /// <returns>A Value.</returns>
+    public static IObservable<TSource?> OnErrorRetry<TSource, TException>(this IObservable<TSource?> source, Action<TException> onError, int retryCount, TimeSpan delay, IScheduler delayScheduler)
+        where TException : Exception => Observable.Defer(() =>
+        {
+            var dueTime = (delay.Ticks < 0) ? TimeSpan.Zero : delay;
+            var empty = Observable.Empty<TSource?>();
+            var count = 0;
+            IObservable<TSource?>? self = null;
+            self = source.Catch((TException ex) =>
+            {
+                onError(ex);
+
+                return (++count < retryCount)
+                        ? (dueTime == TimeSpan.Zero)
+                            ? self!.SubscribeOn(Scheduler.CurrentThread)
+                            : empty.Delay(dueTime, delayScheduler).Concat(self!).SubscribeOn(Scheduler.CurrentThread)
+                        : Observable.Throw<TSource?>(ex);
+            });
+            return self;
+        });
+
+    /// <summary>
+    /// Takes the until the predicate is true.
+    /// </summary>
+    /// <typeparam name="TSource">The type of the source.</typeparam>
+    /// <param name="source">The source.</param>
+    /// <param name="predicate">The predicate for completion.</param>
+    /// <returns>Observable TSource.</returns>
+    public static IObservable<TSource> TakeUntil<TSource>(this IObservable<TSource> source, Func<TSource, bool> predicate) =>
+        Observable.Create<TSource>(observer =>
+            source.Subscribe(
+            item =>
+            {
+                observer.OnNext(item);
+                if (predicate?.Invoke(item) ?? default)
+                {
+                    observer.OnCompleted();
+                }
+            },
+            observer.OnError,
+            observer.OnCompleted));
 
     private static void FastForEach<T>(IObserver<T> observer, IEnumerable<T> source)
     {

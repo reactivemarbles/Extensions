@@ -22,10 +22,14 @@ public static class DisposableExtensions
     public static T DisposeWith<T>(this T item, CompositeDisposable compositeDisposable)
         where T : IDisposable
     {
+#if NETSTANDARD
         if (compositeDisposable is null)
         {
             throw new ArgumentNullException(nameof(compositeDisposable));
         }
+#else
+        ArgumentNullException.ThrowIfNull(compositeDisposable);
+#endif
 
         compositeDisposable.Add(item);
         return item;

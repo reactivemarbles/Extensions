@@ -236,6 +236,7 @@ dotnet_diagnostic.CA2242.severity = error
 dotnet_diagnostic.RCS1001.severity = error
 dotnet_diagnostic.RCS1018.severity = error
 dotnet_diagnostic.RCS1037.severity = error
+dotnet_diagnostic.RCS1047.severity = none
 dotnet_diagnostic.RCS1055.severity = error
 dotnet_diagnostic.RCS1062.severity = error
 dotnet_diagnostic.RCS1066.severity = error

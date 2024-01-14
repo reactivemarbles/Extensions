@@ -36,4 +36,4 @@ Extensions for concerns found in System.Reactive that make consuming the library
 - OnErrorRetry
 - TakeUntil
 - SyncronizeAsync
-- SubscribeSynchronus
+- SubscribeSynchronous

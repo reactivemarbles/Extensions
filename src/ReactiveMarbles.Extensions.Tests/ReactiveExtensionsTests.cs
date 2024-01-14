@@ -111,8 +111,6 @@ public class ReactiveExtensionsTests
             .Be(0);
     }
 
-
-
     /// <summary>
     /// Syncronizes the asynchronous runs with asynchronous tasks in subscriptions.
     /// </summary>
@@ -127,7 +125,7 @@ public class ReactiveExtensionsTests
             .SynchronizeAsync()
             .Subscribe(async x =>
             {
-                if (x.value)
+                if (x.Value)
                 {
                     await Task.Delay(1000);
                     result++;

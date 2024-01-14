@@ -4,6 +4,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Reactive;
 using System.Reactive.Concurrency;
@@ -903,6 +904,91 @@ where TException : Exception => source.OnErrorRetry(onError, retryCount, delay, 
             },
             observer.OnError,
             observer.OnCompleted));
+
+    /// <summary>
+    /// Synchronizes the asynchronous operations in downstream operations.
+    /// Use SubscribeSynchronus instead for a simpler version.
+    /// Call Sync.Dispose() to release the lock in the downstream methods.
+    /// </summary>
+    /// <typeparam name="T">The type of the elements in the source sequence.</typeparam>
+    /// <param name="source">The source.</param>
+    /// <returns>An Observable of T and a release mechanism.</returns>
+    [SuppressMessage("Roslynator", "RCS1047:Non-asynchronous method name should not end with 'Async'.", Justification = "To avoid naming conflicts.")]
+    public static IObservable<(T Value, IDisposable Sync)> SynchronizeAsync<T>(this IObservable<T> source) =>
+        Observable.Create<(T Value, IDisposable Sync)>(observer =>
+        {
+            var gate = new object();
+            return source.Synchronize(gate).Subscribe(item => new Continuation().Lock(item, observer).Wait());
+        });
+
+    /// <summary>
+    /// Subscribes to the specified source synchronously.
+    /// </summary>
+    /// <typeparam name="T">The type of the elements in the source sequence.</typeparam>
+    /// <param name="source">The source.</param>
+    /// <param name="onNext">The on next.</param>
+    /// <param name="onError">The on error.</param>
+    /// <param name="onCompleted">The on completed.</param>
+    /// <returns><see cref="IDisposable"/> object used to unsubscribe from the observable sequence.</returns>
+    public static IDisposable SubscribeSynchronus<T>(this IObservable<T> source, Func<T, Task> onNext, Action<Exception> onError, Action onCompleted) =>
+        source.SynchronizeAsync().Subscribe(
+            async observer =>
+            {
+                await onNext(observer.Value);
+                observer.Sync.Dispose();
+            },
+            onError,
+            onCompleted);
+
+    /// <summary>
+    /// Subscribes an element handler and an exception handler to an observable sequence synchronously.
+    /// </summary>
+    /// <typeparam name="T">The type of the elements in the source sequence.</typeparam>
+    /// <param name="source">Observable sequence to subscribe to.</param>
+    /// <param name="onNext">Action to invoke for each element in the observable sequence.</param>
+    /// <param name="onError">Action to invoke upon exceptional termination of the observable sequence.</param>
+    /// <returns><see cref="IDisposable"/> object used to unsubscribe from the observable sequence.</returns>
+    public static IDisposable SubscribeSynchronus<T>(this IObservable<T> source, Func<T, Task> onNext, Action<Exception> onError) =>
+        source.SynchronizeAsync().Subscribe(
+            async observer =>
+            {
+                await onNext(observer.Value);
+                observer.Sync.Dispose();
+            },
+            onError);
+
+    /// <summary>
+    /// Subscribes an element handler and a completion handler to an observable sequence synchronously.
+    /// </summary>
+    /// <typeparam name="T">The type of the elements in the source sequence.</typeparam>
+    /// <param name="source">Observable sequence to subscribe to.</param>
+    /// <param name="onNext">Action to invoke for each element in the observable sequence.</param>
+    /// <param name="onCompleted">Action to invoke upon graceful termination of the observable sequence.</param>
+    /// <returns><see cref="IDisposable"/> object used to unsubscribe from the observable sequence.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="source"/> or <paramref name="onNext"/> or <paramref name="onCompleted"/> is <c>null</c>.</exception>
+    public static IDisposable SubscribeSynchronus<T>(this IObservable<T> source, Func<T, Task> onNext, Action onCompleted) =>
+        source.SynchronizeAsync().Subscribe(
+            async observer =>
+            {
+                await onNext(observer.Value);
+                observer.Sync.Dispose();
+            },
+            onCompleted);
+
+    /// <summary>
+    /// Subscribes an element handler to an observable sequence synchronously.
+    /// </summary>
+    /// <typeparam name="T">The type of the elements in the source sequence.</typeparam>
+    /// <param name="source">Observable sequence to subscribe to.</param>
+    /// <param name="onNext">Action to invoke for each element in the observable sequence.</param>
+    /// <returns><see cref="IDisposable"/> object used to unsubscribe from the observable sequence.</returns>
+    public static IDisposable SubscribeSynchronus<T>(this IObservable<T> source, Func<T, Task> onNext) =>
+        source.SynchronizeAsync().Subscribe(
+             async observer =>
+             {
+                 await onNext(observer.Value);
+                 observer.Sync.Dispose();
+             });
 
     private static void FastForEach<T>(IObserver<T> observer, IEnumerable<T> source)
     {

@@ -35,3 +35,5 @@ Extensions for concerns found in System.Reactive that make consuming the library
 - Shuffle
 - OnErrorRetry
 - TakeUntil
+- SyncronizeAsync
+- SubscribeSynchronus

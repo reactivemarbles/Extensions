@@ -913,7 +913,6 @@ where TException : Exception => source.OnErrorRetry(onError, retryCount, delay, 
     /// <typeparam name="T">The type of the elements in the source sequence.</typeparam>
     /// <param name="source">The source.</param>
     /// <returns>An Observable of T and a release mechanism.</returns>
-    [SuppressMessage("Roslynator", "RCS1047:Non-asynchronous method name should not end with 'Async'.", Justification = "To avoid naming conflicts.")]
     public static IObservable<(T Value, IDisposable Sync)> SynchronizeAsync<T>(this IObservable<T> source) =>
         Observable.Create<(T Value, IDisposable Sync)>(observer =>
         {
@@ -930,7 +929,7 @@ where TException : Exception => source.OnErrorRetry(onError, retryCount, delay, 
     /// <param name="onError">The on error.</param>
     /// <param name="onCompleted">The on completed.</param>
     /// <returns><see cref="IDisposable"/> object used to unsubscribe from the observable sequence.</returns>
-    public static IDisposable SubscribeSynchronus<T>(this IObservable<T> source, Func<T, Task> onNext, Action<Exception> onError, Action onCompleted) =>
+    public static IDisposable SubscribeSynchronous<T>(this IObservable<T> source, Func<T, Task> onNext, Action<Exception> onError, Action onCompleted) =>
         source.SynchronizeAsync().Subscribe(
             async observer =>
             {
@@ -948,7 +947,7 @@ where TException : Exception => source.OnErrorRetry(onError, retryCount, delay, 
     /// <param name="onNext">Action to invoke for each element in the observable sequence.</param>
     /// <param name="onError">Action to invoke upon exceptional termination of the observable sequence.</param>
     /// <returns><see cref="IDisposable"/> object used to unsubscribe from the observable sequence.</returns>
-    public static IDisposable SubscribeSynchronus<T>(this IObservable<T> source, Func<T, Task> onNext, Action<Exception> onError) =>
+    public static IDisposable SubscribeSynchronous<T>(this IObservable<T> source, Func<T, Task> onNext, Action<Exception> onError) =>
         source.SynchronizeAsync().Subscribe(
             async observer =>
             {
@@ -966,7 +965,7 @@ where TException : Exception => source.OnErrorRetry(onError, retryCount, delay, 
     /// <param name="onCompleted">Action to invoke upon graceful termination of the observable sequence.</param>
     /// <returns><see cref="IDisposable"/> object used to unsubscribe from the observable sequence.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="source"/> or <paramref name="onNext"/> or <paramref name="onCompleted"/> is <c>null</c>.</exception>
-    public static IDisposable SubscribeSynchronus<T>(this IObservable<T> source, Func<T, Task> onNext, Action onCompleted) =>
+    public static IDisposable SubscribeSynchronous<T>(this IObservable<T> source, Func<T, Task> onNext, Action onCompleted) =>
         source.SynchronizeAsync().Subscribe(
             async observer =>
             {
@@ -982,7 +981,7 @@ where TException : Exception => source.OnErrorRetry(onError, retryCount, delay, 
     /// <param name="source">Observable sequence to subscribe to.</param>
     /// <param name="onNext">Action to invoke for each element in the observable sequence.</param>
     /// <returns><see cref="IDisposable"/> object used to unsubscribe from the observable sequence.</returns>
-    public static IDisposable SubscribeSynchronus<T>(this IObservable<T> source, Func<T, Task> onNext) =>
+    public static IDisposable SubscribeSynchronous<T>(this IObservable<T> source, Func<T, Task> onNext) =>
         source.SynchronizeAsync().Subscribe(
              async observer =>
              {

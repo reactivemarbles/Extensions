@@ -77,7 +77,7 @@ public class ReactiveExtensionsTests
         var itterations = 0;
         var subject = new Subject<bool>();
         using var disposable = subject
-            .SubscribeSynchronus(async x =>
+            .SubscribeSynchronous(async x =>
             {
                 if (x)
                 {

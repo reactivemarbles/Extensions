@@ -157,4 +157,96 @@ public class ReactiveExtensionsTests
             .Should()
             .Be(0);
     }
+
+    /// <summary>
+    /// Syncronizes the asynchronous runs with asynchronous tasks in subscriptions.
+    /// </summary>
+    [Fact]
+    public void SynchronizeSynchronous_RunsWithAsyncTasksInSubscriptions()
+    {
+        // Given, When
+        var result = 0;
+        var itterations = 0;
+        var subject = new Subject<bool>();
+        using var disposable = subject
+            .SynchronizeSynchronous()
+            .Subscribe(async x =>
+            {
+                if (x.Value)
+                {
+                    await Task.Delay(1000);
+                    result++;
+                }
+                else
+                {
+                    await Task.Delay(500);
+                    result--;
+                }
+
+                x.Sync.Dispose();
+                itterations++;
+            });
+
+        subject.OnNext(true);
+        subject.OnNext(false);
+        subject.OnNext(true);
+        subject.OnNext(false);
+        subject.OnNext(true);
+        subject.OnNext(false);
+
+        while (itterations < 6)
+        {
+            Thread.Yield();
+        }
+
+        // Then
+        result
+            .Should()
+            .Be(0);
+    }
+
+    /// <summary>
+    /// Syncronizes the asynchronous runs with asynchronous tasks in subscriptions.
+    /// </summary>
+    [Fact]
+    public void SubscribeAsync_RunsWithAsyncTasksInSubscriptions()
+    {
+        // Given, When
+        var result = 0;
+        var itterations = 0;
+        var subject = new Subject<bool>();
+        using var disposable = subject
+            .SubscribeAsync(async x =>
+            {
+                if (x)
+                {
+                    await Task.Delay(1000);
+                    result++;
+                }
+                else
+                {
+                    await Task.Delay(500);
+                    result--;
+                }
+
+                itterations++;
+            });
+
+        subject.OnNext(true);
+        subject.OnNext(false);
+        subject.OnNext(true);
+        subject.OnNext(false);
+        subject.OnNext(true);
+        subject.OnNext(false);
+
+        while (itterations < 6)
+        {
+            Thread.Yield();
+        }
+
+        // Then
+        result
+            .Should()
+            .Be(0);
+    }
 }
